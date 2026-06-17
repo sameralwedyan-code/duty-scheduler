@@ -1554,22 +1554,23 @@
             }
 
             assignWeekendOffs(schedule, employees) {
-    const employeeWeekendTracker = {};
+    const weekendTracker = {};
+
     employees.forEach(emp => {
-        employeeWeekendTracker[emp.id] = 0;
+        weekendTracker[emp.id] = 0;
     });
 
     const startDate = new Date(this.settings.startDate);
     const endDate = new Date(this.settings.endDate);
 
-    let currentDate = new Date(startDate);
-
+    let current = new Date(startDate);
     const weekendPairs = [];
 
-    while (currentDate <= endDate) {
-        if (currentDate.getDay() === 5) { // Friday
-            const friday = new Date(currentDate);
-            const saturday = new Date(currentDate);
+    // جمع كل Fridays + Saturdays
+    while (current <= endDate) {
+        if (current.getDay() === 5) { // Friday
+            const friday = new Date(current);
+            const saturday = new Date(current);
             saturday.setDate(saturday.getDate() + 1);
 
             weekendPairs.push({
@@ -1577,13 +1578,14 @@
                 saturday: this.formatDate(saturday)
             });
         }
-
-        currentDate.setDate(currentDate.getDate() + 1);
+        current.setDate(current.getDate() + 1);
     }
 
+    // توزيع الويكند بعدالة
     weekendPairs.forEach(pair => {
+
         const sortedEmployees = [...employees].sort(
-            (a, b) => employeeWeekendTracker[a.id] - employeeWeekendTracker[b.id]
+            (a, b) => weekendTracker[a.id] - weekendTracker[b.id]
         );
 
         for (let emp of sortedEmployees) {
@@ -1594,26 +1596,42 @@
                 schedule[emp.id][pair.friday] = 'OFF';
                 schedule[emp.id][pair.saturday] = 'OFF';
 
-                employeeWeekendTracker[emp.id]++;
+                weekendTracker[emp.id]++;
                 break;
             }
         }
     });
-            }
+}
 
-            assignOffDays(schedule, employees) {
-                employees.forEach(emp => {
-                    const offDaysRequired = this.settings.offDays[emp.id] || 4;
-                    let offDaysAssigned = 0;
+assignOffDays(schedule, employees) {
+    employees.forEach(emp => {
 
-                    Object.keys(schedule[emp.id]).forEach(dateStr => {
-                        if (offDaysAssigned < offDaysRequired && schedule[emp.id][dateStr] === null) {
-                            schedule[emp.id][dateStr] = 'OFF';
-                            offDaysAssigned++;
-                        }
-                    });
-                });
+        const requiredOff = this.settings.offDays[emp.id] || 4;
+
+        const availableDays = Object.keys(schedule[emp.id])
+            .filter(d => schedule[emp.id][d] === null);
+
+        if (availableDays.length === 0) return;
+
+        const step = Math.max(Math.floor(availableDays.length / requiredOff), 1);
+
+        let assigned = 0;
+
+        // توزيع OFF بشكل متوازن على الشهر
+        for (let i = 0; i < availableDays.length && assigned < requiredOff; i += step) {
+            schedule[emp.id][availableDays[i]] = 'OFF';
+            assigned++;
+        }
+
+        // fallback إذا بقي نقص
+        for (let i = 0; i < availableDays.length && assigned < requiredOff; i++) {
+            if (schedule[emp.id][availableDays[i]] === null) {
+                schedule[emp.id][availableDays[i]] = 'OFF';
+                assigned++;
             }
+        }
+    });
+}
 
             assignShifts(schedule, employees) {
                 const nightShiftSize = this.settings.nightShiftSize;
