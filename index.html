@@ -1554,40 +1554,51 @@
             }
 
             assignWeekendOffs(schedule, employees) {
-                const weekendOffCount = {};
-                employees.forEach(emp => {
-                    weekendOffCount[emp.id] = 0;
-                });
+    const employeeWeekendTracker = {};
+    employees.forEach(emp => {
+        employeeWeekendTracker[emp.id] = 0;
+    });
 
-                const startDate = new Date(this.settings.startDate);
-                const endDate = new Date(this.settings.endDate);
-                let currentDate = new Date(startDate);
+    const startDate = new Date(this.settings.startDate);
+    const endDate = new Date(this.settings.endDate);
 
-                while (currentDate <= endDate) {
-                    const dayOfWeek = currentDate.getDay();
-                    const dateStr = this.formatDate(currentDate);
+    let currentDate = new Date(startDate);
 
-                    if (dayOfWeek === 6) { // Saturday
-                        const sundayDate = new Date(currentDate);
-                        sundayDate.setDate(sundayDate.getDate() + 1);
-                        const sundayStr = this.formatDate(sundayDate);
+    const weekendPairs = [];
 
-                        // Check if both days are available for any employee
-                        let assigned = false;
-                        for (let emp of employees) {
-                            if (schedule[emp.id][dateStr] === null && 
-                                schedule[emp.id][sundayStr] === null) {
-                                schedule[emp.id][dateStr] = 'WO';
-                                schedule[emp.id][sundayStr] = 'WO';
-                                weekendOffCount[emp.id]++;
-                                assigned = true;
-                                break;
-                            }
-                        }
-                    }
+    while (currentDate <= endDate) {
+        if (currentDate.getDay() === 5) { // Friday
+            const friday = new Date(currentDate);
+            const saturday = new Date(currentDate);
+            saturday.setDate(saturday.getDate() + 1);
 
-                    currentDate.setDate(currentDate.getDate() + 1);
-                }
+            weekendPairs.push({
+                friday: this.formatDate(friday),
+                saturday: this.formatDate(saturday)
+            });
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    weekendPairs.forEach(pair => {
+        const sortedEmployees = [...employees].sort(
+            (a, b) => employeeWeekendTracker[a.id] - employeeWeekendTracker[b.id]
+        );
+
+        for (let emp of sortedEmployees) {
+            if (
+                schedule[emp.id][pair.friday] === null &&
+                schedule[emp.id][pair.saturday] === null
+            ) {
+                schedule[emp.id][pair.friday] = 'OFF';
+                schedule[emp.id][pair.saturday] = 'OFF';
+
+                employeeWeekendTracker[emp.id]++;
+                break;
+            }
+        }
+    });
             }
 
             assignOffDays(schedule, employees) {
